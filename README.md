@@ -1,128 +1,70 @@
-# Lumina Choreographer 💃✨
+# Lumina Choreographer
 
-**Lumina Choreographer** is a professional browser-based application designed for programming complex light shows for WS2812B (NeoPixel) LED suits. 
+Lumina Choreographer is a browser-based editor for building WS2812B (NeoPixel) LED suit shows. It combines a multi-track timeline, a real-time visualizer for five dancers, and a FastLED export pipeline.
 
-It features a timeline-based non-linear editing interface, a real-time 3D-mapped visualizer for 5 dancers, and a powerful export engine that generates optimized C++ code for Arduino/ESP32 controllers using the FastLED library.
+## Features
+- Visualizer with five suits and spatial body mapping
+- Timeline editing with overlapping cues and millisecond timing
+- Effect engine with motion, spatial, and generative effects
+- Palette presets for fast color picking
+- Per-cue brightness curve (linear or gamma)
+- One-click Arduino export with embedded project data
 
-## 🌟 Features
+## Controls
+- Play/Pause: Spacebar or the play button
+- Scrub: click the timeline ruler
+- Nudge time: Left/Right arrows (use the UI to change nudge step)
+- Delete cue: Delete or Backspace
+- Add cue: Double-click in a track or Shift+click on the ruler
 
-### 🎨 Visualizer & Design
-- **Real-time Preview:** visualizing 5 dancers simultaneously.
-- **Anatomy Mapping:** 541 LEDs per suit mapped to specific body parts (Arms, Legs, Torso, Face, Pockets).
-- **Spatial Effects:** Effects can be applied based on physical space (e.g., "Body Fill" from feet to head) rather than just strip index order.
-- **Reference Video:** Import an MP4/MOV of your choreography to display behind the dancers for perfect synchronization.
+## Export
+1. Click Export Arduino in the header.
+2. Choose All Suits or a specific dancer.
+3. Set a time offset if you need sync staging.
+4. Generate and download the .ino file.
+5. Open it in Arduino IDE and upload (FastLED required).
 
-### ⏱️ Timeline Editor
-- **Multi-Track System:** Manage cues for individual dancers.
-- **Layering:** multiple effects can overlap on the same dancer; the engine handles additive color blending automatically.
-- **Drag & Drop:** Easy timeline scrubbing and zooming.
-- **Precise Control:** Edit start times and durations down to the millisecond.
+Project data is embedded inside the exported file, so you can import it later via Import Project.
 
-### 💡 Effect Engine
-Includes a variety of procedural effects:
-- **Basics:** Solid, Fade, Blend, Gradient.
-- **Motion:** Chase, Wipe, Fill.
-- **Spatial:** Body Wipe (Top-to-Bottom), Body Fill, Horizontal Wipes.
-- **Generative:** Sparkle (twinkle), Strobe, Wave, Random Noise.
-- **Direction Control:** Forward, Backward, Hands-Up vs. Hands-Down poses.
-
-### 🛠️ Hardware Export
-- **One-Click Export:** Generates a ready-to-flash `.ino` file.
-- **Project Recovery:** The raw project data (JSON) is embedded inside the exported C++ file. You can restore your entire save state by importing the `.ino` file back into the web app.
-- **Memory Optimized:** Uses procedural runtime generation (Engine-on-Chip) to compress 4+ minutes of animation into ~15KB of flash memory.
-
----
-
-## 🚀 Installation for Developers
-
-This project is built with React, TypeScript, and Vite.
-
+## Development
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [npm](https://www.npmjs.com/) (usually included with Node.js)
-- [Git](https://git-scm.com/)
+- Node.js 16+
+- npm
 
-### Setup Guide
+### Setup
+```bash
+git clone https://github.com/AKSHAY-RSOL/led-encoder-v3.git
+cd led-encoder-v3
+npm install
+npm run dev
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/AKSHAY-RSOL/led-encoder-v3.git
-   cd led-encoder-v3
-   ```
+Open the URL printed in the terminal (typically http://localhost:5173).
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## How The App Is Built
+Lumina is a React + TypeScript single-page app bundled by Vite. Rendering and playback are handled on the client for quick iteration and low-latency previewing.
 
-3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
+### Rendering Pipeline
+- The visualizer uses a single canvas and pre-renders the static suit geometry to an offscreen backing canvas.
+- Each frame, only active LEDs are drawn, which keeps draw calls low even with large LED counts.
+- Spatial effects use an approximate body coordinate system to map LED indices to X/Y positions.
 
-4. **Open the App:**
-   Open your browser to the URL shown in the terminal (usually `http://localhost:5173`).
+### Effect Engine
+- Cues are stored as typed objects and evaluated per frame based on current time.
+- Effects are computed in integer color space for speed, then blended additively.
+- Brightness uses per-cue curves (linear or gamma) to match physical LED perception.
 
----
+### Export Format
+- Export generates a FastLED-compatible .ino file.
+- Project data is embedded as JSON in C++ comments so it can be re-imported.
+- Each cue is encoded with compact flags for direction, pose, and brightness curve.
 
-## 📖 User Guide
-
-### 1. Navigation
-- **Play/Pause:** Spacebar or click the Play button in the toolbar.
-- **Scrub:** Click anywhere on the timeline ruler to jump to a timestamp.
-- **Nudge:** Use Left/Right arrow keys to move the timeline. Click the `-10ms` / `+10ms` buttons to change nudge precision.
-- **Delete:** Select a cue and press Delete/Backspace to remove it.
-
-### 2. Creating Effects
-1. **Select a Track:** Locate the dancer (Suit 0-4) you want to edit.
-2. **Add Cue:** 
-   - **Double Click** inside a track to add a cue at that position.
-   - Or **Shift + Click** on the ruler/track.
-3. **Select Cue:** Click a cue block to select it. It will highlight with a cyan border.
-
-### 3. Editing Properties
-When a cue is selected, the **Right Panel** becomes active:
-- **Effect Type:** Choose the animation logic (e.g., Chase, Body Fill).
-- **Colors:** Set Primary and Secondary colors.
-- **Timing:** Fine-tune Start Time and Duration.
-- **LED Range:** Restrict the effect to specific LEDs (e.g., only the mask or only the legs).
-- **Modifiers:** Adjust speed, brightness, and direction.
-
-### 4. Video Sync
-1. Click **"Import Video"** in the top right.
-2. Select a video file of your dance rehearsal.
-3. The video will appear in the background of the Visualizer.
-4. The timeline will automatically sync with the video playback.
-
----
-
-## 🔌 Hardware Setup & Exporting
-
-### The Suit Layout
-The default configuration assumes **541 LEDs** per suit. You can modify the `DEFAULT_SUITS` constant in `constants.ts` to match your specific hardware strip lengths.
-
-### Flashing to Controller
-1. Click **"Export Arduino"** in the app header.
-2. Select **Target Device** (All suits or a specific dancer).
-3. (Optional) Set **Time Offset** if you are syncing multiple MCUs.
-4. Click **Generate Code** to download the `.ino` file.
-5. Open this file in the **Arduino IDE**.
-6. **Library Requirement:** Ensure you have the [FastLED](https://github.com/FastLED/FastLED) library installed.
-7. **Hardware:**
-   - **Recommended:** ESP32.
-   - **Wiring:** Connect Data Pin of the LED strip to the pin defined in the generated code (Defaults: Pins 4, 16, 17, 18, 19 for suits 0-4).
-8. Upload the sketch to your board.
-
-### Saving Your Work
-Lumina does not use a database. To save your work:
-1. **Export** the Arduino file.
-2. To load it later, click **"Import Project"** and select that same `.ino` file. The app reads the hidden JSON data inside the C++ comments.
-
----
-
-## 🛠️ Tech Stack
-- **Framework:** React 18
-- **Language:** TypeScript
-- **Build Tool:** Vite
-- **Styling:** Tailwind CSS (via CDN)
-- **Icons:** Lucide React
+## Project Structure
+- App.tsx: top-level state, playback, and orchestration
+- components/Visualizer.tsx: canvas visualizer and video sync
+- components/Timeline.tsx: timeline UI and cue layout
+- components/PropertiesPanel.tsx: cue editing and presets
+- components/ExportModal.tsx: export configuration
+- services/ledEngine.ts: cue evaluation and export generation
+- constants.ts: default suits and sample cues
+- types.ts: shared data types
