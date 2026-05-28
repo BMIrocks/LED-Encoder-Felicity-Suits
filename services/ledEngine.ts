@@ -138,6 +138,16 @@ function dimInt(color: number, factor: number): number {
     return (r << 16) | (g << 8) | b;
 }
 
+// Helper: Apply linear or gamma brightness
+function applyBrightnessInt(color: number, brightness: number, curve: 'linear' | 'gamma'): number {
+    const clamped = Math.max(0, Math.min(100, brightness));
+    let factor = clamped / 100;
+    if (curve === 'gamma') {
+        factor = factor * factor; // simple gamma curve (approx 2.0)
+    }
+    return dimInt(color, factor);
+}
+
 /**
  * Pre-computes color integers for a list of cues.
  * Call this once per frame before iterating pixels.
@@ -358,7 +368,8 @@ const getCueColorContributionInt = (
 
   // Global Brightness Factor
   if (cue.brightness !== undefined && cue.brightness < 100) {
-      finalColorInt = dimInt(finalColorInt, Math.max(0, cue.brightness) / 100);
+      const curve = cue.brightnessCurve === 'gamma' ? 'gamma' : 'linear';
+      finalColorInt = applyBrightnessInt(finalColorInt, cue.brightness, curve);
   }
 
   return finalColorInt;
@@ -431,6 +442,14 @@ interface SavedProjectData {
     cues: Cue[];
     duration: number;
     version: string;
+    metadata: {
+        schemaVersion: string;
+        exportedAt: string;
+        app: string;
+        targetSuitId: number | null;
+        timeOffsetMs: number;
+        totalCues: number;
+    };
 }
 
 const SAVE_START_MARKER = "/*__LUMINA_SAVE_DATA_START__";
@@ -467,7 +486,20 @@ export const generateFastLedCode = (
   const codeLines: string[] = [];
   
   // 1. EMBED SAVE DATA
-  const projectData: SavedProjectData = { suits, cues, duration: totalDuration, version: '1.0.0' };
+  const projectData: SavedProjectData = {
+      suits,
+      cues,
+      duration: totalDuration,
+      version: '1.1.0',
+      metadata: {
+          schemaVersion: '1.1.0',
+          exportedAt: new Date().toISOString(),
+          app: 'Lumina Choreographer',
+          targetSuitId,
+          timeOffsetMs: timeOffset,
+          totalCues: cues.length
+      }
+  };
   codeLines.push(SAVE_START_MARKER);
   codeLines.push(JSON.stringify(projectData));
   codeLines.push(SAVE_END_MARKER);
@@ -520,7 +552,7 @@ export const generateFastLedCode = (
   codeLines.push(`  uint16_t ledEnd;`);
   codeLines.push(`  uint8_t speed;`);
   codeLines.push(`  uint8_t brightness;`);
-  codeLines.push(`  uint8_t flags; // Bit 0: Backward, Bit 1: HandsUp, Bit 2: Uniform`);
+    codeLines.push(`  uint8_t flags; // Bit 0: Backward, Bit 1: HandsUp, Bit 2: Uniform, Bit 3: GammaBrightness`);
   codeLines.push(`};`);
   
   codeLines.push(``);
@@ -547,6 +579,7 @@ export const generateFastLedCode = (
       if (c.direction === 'backward') flags |= 1;
       if (c.pose === 'hands-up') flags |= 2;
       if (c.variant === 'uniform') flags |= 4;
+    if (c.brightnessCurve === 'gamma') flags |= 8;
       
       // Apply Time Offset
       const adjustedStartTime = c.startTime + timeOffset;
@@ -687,6 +720,7 @@ void loop() {
           bool backward = c.flags & 1;
           bool handsUp = c.flags & 2;
           bool uniform = c.flags & 4;
+          bool gammaBrightness = c.flags & 8;
           
           uint16_t rangeWidth = c.ledEnd - c.ledStart;
           
@@ -799,7 +833,9 @@ void loop() {
                if(isActive) {
                    // Global Brightness
                    if(c.brightness < 100) {
-                       pixelColor.nscale8((c.brightness * 255) / 100);
+                       float factor = (float)c.brightness / 100.0;
+                       if(gammaBrightness) factor = factor * factor;
+                       pixelColor.nscale8((uint8_t)(factor * 255));
                    }
                    // Additive Blending
                    leds[c.suitIndex][led] += pixelColor;

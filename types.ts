@@ -29,6 +29,7 @@ export interface Cue {
   pose?: 'hands-down' | 'hands-up'; // For body-fill spatial calculation
   speed?: number; // For dynamic effects
   brightness?: number; // 0-100
+  brightnessCurve?: 'linear' | 'gamma'; // Brightness falloff shape
   ledRangeStart: number;
   ledRangeEnd: number;
   selected?: boolean;

@@ -25,9 +25,6 @@ interface FlattenedSuitGeometry {
     allLeds: { x: number, y: number, id: number }[]; // For fast hit testing / looping
 }
 
-// Logical dimensions of the scene
-const SCENE_WIDTH = 1050; 
-const SCENE_HEIGHT = 500;
 const OFF_COLOR_INT = 0x333333;
 
 const Visualizer: React.FC<VisualizerProps> = ({ 
@@ -46,8 +43,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const backingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0, scale: 1 });
   
-  // -- GEOMETRY CALCULATION --
-  const geometry = useMemo(() => {
+    // -- GEOMETRY CALCULATION --
+    const geometry = useMemo(() => {
     // Helper helpers
     const interpolate = (start: {x: number, y: number}, end: {x: number, y: number}, fraction: number) => ({
         x: start.x + (end.x - start.x) * fraction,
@@ -230,32 +227,74 @@ const Visualizer: React.FC<VisualizerProps> = ({
     });
 
     return geometries;
-  }, [suits]);
+    }, [suits]);
+
+    const sceneBounds = useMemo(() => {
+        let minX = Number.POSITIVE_INFINITY;
+        let minY = Number.POSITIVE_INFINITY;
+        let maxX = Number.NEGATIVE_INFINITY;
+        let maxY = Number.NEGATIVE_INFINITY;
+
+        geometry.forEach((suit) => {
+            suit.allLeds.forEach((led) => {
+                if (led.x < minX) minX = led.x;
+                if (led.y < minY) minY = led.y;
+                if (led.x > maxX) maxX = led.x;
+                if (led.y > maxY) maxY = led.y;
+            });
+        });
+
+        if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+            return { minX: 0, minY: 0, maxX: 1, maxY: 1, width: 1, height: 1, centerX: 0.5, centerY: 0.5 };
+        }
+
+        const padding = 40;
+        minX -= padding;
+        minY -= padding;
+        maxX += padding;
+        maxY += padding;
+
+        const width = Math.max(1, maxX - minX);
+        const height = Math.max(1, maxY - minY);
+        const centerX = minX + width / 2;
+        const centerY = minY + height / 2;
+
+        return { minX, minY, maxX, maxY, width, height, centerX, centerY };
+    }, [geometry]);
 
   // -- INIT CANVAS SIZE --
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    // Initial size calculation
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
-    
-    // Set actual canvas size (pixels)
-    const w = rect.width * dpr;
-    const h = rect.height * dpr;
-    
-    canvas.width = w;
-    canvas.height = h;
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-    // Calculate scale to fit logic
-    const scaleX = rect.width / SCENE_WIDTH;
-    const scaleY = rect.height / SCENE_HEIGHT;
-    const scale = Math.min(scaleX, scaleY) * 0.95; // 95% fit
+        const updateCanvasSize = () => {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
 
-    setDimensions({ width: w, height: h, scale });
+            const w = rect.width * dpr;
+            const h = rect.height * dpr;
 
-  }, []); // Run once on mount
+            canvas.width = w;
+            canvas.height = h;
+
+            const scaleX = rect.width / sceneBounds.width;
+            const scaleY = rect.height / sceneBounds.height;
+            const scale = Math.min(scaleX, scaleY) * 0.98;
+
+            setDimensions({ width: w, height: h, scale });
+        };
+
+        updateCanvasSize();
+
+        const observer = new ResizeObserver(updateCanvasSize);
+        observer.observe(canvas);
+        window.addEventListener('resize', updateCanvasSize);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateCanvasSize);
+        };
+    }, [sceneBounds.width, sceneBounds.height]);
 
   // -- RENDER CACHED BACKING (Lines + OFF LEDs) --
   useEffect(() => {
@@ -276,8 +315,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
       
       const centerX = rectWidth / 2;
       const centerY = rectHeight / 2;
-      const sceneCenterX = SCENE_WIDTH / 2;
-      const sceneCenterY = SCENE_HEIGHT / 2;
+    const sceneCenterX = sceneBounds.centerX;
+    const sceneCenterY = sceneBounds.centerY;
 
       ctx.save();
       ctx.translate(centerX, centerY);
@@ -314,7 +353,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
       backingCanvasRef.current = backingCanvas;
 
-  }, [geometry, dimensions]); // Re-render backing if geometry or window size changes
+    }, [geometry, dimensions, sceneBounds]); // Re-render backing if geometry or window size changes
 
 
   // -- ANIMATION RENDER LOOP --
@@ -336,8 +375,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
           const rectHeight = dimensions.height / dpr;
           const centerX = rectWidth / 2;
           const centerY = rectHeight / 2;
-          const sceneCenterX = SCENE_WIDTH / 2;
-          const sceneCenterY = SCENE_HEIGHT / 2;
+          const sceneCenterX = sceneBounds.centerX;
+          const sceneCenterY = sceneBounds.centerY;
 
           ctx.save();
           // We must apply the same transform to draw the active dots in the correct spot
@@ -378,7 +417,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
       drawFrame();
 
-  }, [currentTime, cues, geometry, dimensions]); 
+    }, [currentTime, cues, geometry, dimensions, sceneBounds]); 
 
   // -- VIDEO SYNC --
   useEffect(() => {
@@ -421,8 +460,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
       // Inverse Transform
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
-      const sceneCenterX = SCENE_WIDTH / 2;
-      const sceneCenterY = SCENE_HEIGHT / 2;
+    const sceneCenterX = sceneBounds.centerX;
+    const sceneCenterY = sceneBounds.centerY;
       
       const logicalX = (x - centerX) / dimensions.scale + sceneCenterX;
       const logicalY = (y - centerY) / dimensions.scale + sceneCenterY;

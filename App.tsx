@@ -136,6 +136,7 @@ const App: React.FC = () => {
           ledRangeEnd: 100, // Default to full suit
           speed: 10,
           brightness: 100,
+          brightnessCurve: 'linear',
           direction: 'forward',
           pose: 'hands-down'
       };

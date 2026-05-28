@@ -19,6 +19,17 @@ const EFFECT_TYPES: EffectType[] = [
     'gradient', 'blend', 'random', 'random-fill'
 ];
 
+const COLOR_PRESETS = [
+    '#00d9ff',
+    '#ff3b3b',
+    '#ff8f00',
+    '#ffd100',
+    '#00ff9d',
+    '#8f3bff',
+    '#ffffff',
+    '#111111'
+];
+
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ 
   selectedCue, 
   suits, 
@@ -208,6 +219,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             className="flex-1 bg-neutral-900 border border-neutral-700 rounded px-2 text-sm font-mono text-white focus:border-cyan-500 outline-none"
                         />
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {COLOR_PRESETS.map((preset) => (
+                            <button
+                                key={`primary-${preset}`}
+                                type="button"
+                                onClick={() => onUpdateCue(selectedCue.id, { color: preset })}
+                                className="h-6 w-6 rounded border border-neutral-700"
+                                style={{ backgroundColor: preset }}
+                                title={preset}
+                            />
+                        ))}
+                    </div>
                 </div>
                 
                 {(selectedCue.type === 'chase' || selectedCue.type === 'fade' || selectedCue.type === 'gradient' || selectedCue.type === 'blend') && (
@@ -226,6 +249,18 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 onChange={(e) => onUpdateCue(selectedCue.id, { secondaryColor: e.target.value })}
                                 className="flex-1 bg-neutral-900 border border-neutral-700 rounded px-2 text-sm font-mono text-white focus:border-cyan-500 outline-none"
                             />
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {COLOR_PRESETS.map((preset) => (
+                                <button
+                                    key={`secondary-${preset}`}
+                                    type="button"
+                                    onClick={() => onUpdateCue(selectedCue.id, { secondaryColor: preset })}
+                                    className="h-6 w-6 rounded border border-neutral-700"
+                                    style={{ backgroundColor: preset }}
+                                    title={preset}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}
@@ -250,6 +285,30 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onChange={(e) => onUpdateCue(selectedCue.id, { brightness: parseInt(e.target.value) })}
                 className="w-full accent-cyan-500"
             />
+            <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                    type="button"
+                    onClick={() => onUpdateCue(selectedCue.id, { brightnessCurve: 'linear' })}
+                    className={`py-1 text-xs rounded border ${
+                        (selectedCue.brightnessCurve ?? 'linear') === 'linear'
+                            ? 'bg-cyan-900/50 border-cyan-500 text-white'
+                            : 'bg-transparent border-neutral-600 text-neutral-400'
+                    }`}
+                >
+                    Linear
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onUpdateCue(selectedCue.id, { brightnessCurve: 'gamma' })}
+                    className={`py-1 text-xs rounded border ${
+                        selectedCue.brightnessCurve === 'gamma'
+                            ? 'bg-cyan-900/50 border-cyan-500 text-white'
+                            : 'bg-transparent border-neutral-600 text-neutral-400'
+                    }`}
+                >
+                    Gamma
+                </button>
+            </div>
         </div>
 
         {/* Timing */}
